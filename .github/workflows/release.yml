@@ -1,0 +1,188 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate tag and flake
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      zip_name: ${{ steps.meta.outputs.zip_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version and verify tag
+        id: meta
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-][0-9A-Za-z.-]+)?([+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Unsupported tag (need vX.Y.Z SemVer): $tag" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+
+          plugin_ver="$(jq -r '.version // empty' plugin.json)"
+          claude_ver="$(jq -r '.version // empty' .claude-plugin/plugin.json)"
+          skill_ver="$(
+            awk '
+              BEGIN { in_fm=0 }
+              /^---[[:space:]]*$/ { if (in_fm) exit; in_fm=1; next }
+              in_fm && /^[[:space:]]*version:/ {
+                sub(/^[^:]*:[[:space:]]*/, "")
+                gsub(/["[:space:]]/, "")
+                print
+                exit
+              }
+            ' skills/deployah/SKILL.md
+          )"
+
+          if [[ -z "$plugin_ver" || "$plugin_ver" != "$version" ]]; then
+            echo "Tag version '$version' does not match plugin.json '$plugin_ver'" >&2
+            exit 1
+          fi
+          if [[ "$claude_ver" != "$version" ]]; then
+            echo "Tag version '$version' does not match .claude-plugin/plugin.json '$claude_ver'" >&2
+            exit 1
+          fi
+          if [[ "$skill_ver" != "$version" ]]; then
+            echo "Tag version '$version' does not match SKILL.md metadata.version '$skill_ver'" >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Tag commit $GITHUB_SHA is not reachable from origin/main" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "zip_name=deployah-agent-skills-v${version}.zip" >> "$GITHUB_OUTPUT"
+
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock', 'nix/**') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 3221225472
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-last-accessed: P7D
+          purge-primary-key: never
+
+      - name: Validate
+        run: nix flake check --print-build-logs
+
+  package:
+    name: Build release artifact
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock', 'nix/**') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 3221225472
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-last-accessed: P7D
+          purge-primary-key: never
+
+      - name: Build ZIP
+        run: nix build .#release --print-build-logs
+
+      - name: Verify artifact
+        env:
+          ZIP_NAME: ${{ needs.validate.outputs.zip_name }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -f "result/${ZIP_NAME}"
+          test "$(cat result/VERSION)" = "$VERSION"
+          tmp="$(mktemp -d)"
+          unzip -q "result/${ZIP_NAME}" -d "$tmp"
+          test -f "$tmp/plugin.json"
+          test -f "$tmp/skills/deployah/SKILL.md"
+          test -f "$tmp/.claude-plugin/plugin.json"
+          test -f "$tmp/.claude-plugin/marketplace.json"
+          test -f "$tmp/LICENSE"
+          test -f "$tmp/README.md"
+          # Maintainer-only paths must not ship.
+          if [[ -e "$tmp/nix" || -e "$tmp/flake.nix" || -e "$tmp/.github" || -e "$tmp/evals" || -e "$tmp/third_party" ]]; then
+            echo "release ZIP contains maintainer-only paths" >&2
+            exit 1
+          fi
+          test "$(jq -r '.version' "$tmp/plugin.json")" = "$VERSION"
+          mkdir -p dist
+          cp "result/${ZIP_NAME}" "dist/${ZIP_NAME}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-zip
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [validate, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: release-zip
+          path: dist
+
+      - name: Skip if release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} already exists; skipping publish (no overwrite)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.existing.outputs.skip != 'true'
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Deployah Agent Skills v${{ needs.validate.outputs.version }}
+          generate_release_notes: true
+          files: dist/${{ needs.validate.outputs.zip_name }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

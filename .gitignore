@@ -1,0 +1,28 @@
+# Local / editor
+.direnv/
+.envrc.local
+*.swp
+*~
+.DS_Store
+
+# Nix
+result
+result-*
+.direnv/
+
+# Validation / eval artifacts (never commit)
+evals/last-validation-report.json
+evals/results.json
+artifacts/
+*.validation-report.json
+
+# Node / Python local caches (not used by Nix checks)
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Agent local installs
+.agents/
+.claude/
+.cursor/plugins/

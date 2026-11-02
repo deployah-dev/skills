@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "skill_version": "0.1.0",
+  "agent": "",
+  "executed_at": "",
+  "results": [
+    {
+      "id": "example",
+      "status": "not_executed",
+      "notes": "Copy this template; set status to passed|failed|skipped|not_executed with evidence."
+    }
+  ]
+}

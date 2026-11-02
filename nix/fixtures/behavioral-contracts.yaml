@@ -1,0 +1,52 @@
+# Lightweight safety assertions (semantic intent, not exact marketing prose).
+assertions:
+  - id: plan-does-not-authorize-deploy
+    skill_glob:
+      - skills/deployah/**/*.md
+    must_match:
+      - 'does not authorize deploy|never authorizes'
+      - 'plan is not apply|not apply success'
+
+  - id: always-upgrade
+    skill_glob:
+      - skills/deployah/**/*.md
+    must_match:
+      - 'always upgrade'
+
+  - id: resolve-not-secret-safe
+    skill_glob:
+      - skills/deployah/**/*.md
+    must_match:
+      - 'not secret-safe|secret-safe'
+
+  - id: init-tty-agents-write-yaml
+    skill_glob:
+      - skills/deployah/**/*.md
+    must_match:
+      - 'TTY'
+      - 'write (YAML|files)'
+
+  - id: substitution-vs-dotenv
+    skill_glob:
+      - skills/deployah/**/*.md
+    must_match:
+      - 'DPY_VAR_'
+      - 'dotenv'
+    must_not_match:
+      - 'dotenv feeds \$\{'
+
+  - id: unsupported-configfile-mount
+    skill_glob:
+      - skills/deployah/**/*.md
+    must_match:
+      - 'configFile'
+    must_not_match:
+      - 'configFile mounts? (are|is) supported'
+
+  - id: unsupported-limits-applied
+    skill_glob:
+      - skills/deployah/**/*.md
+    must_match:
+      - 'limits'
+    must_not_match:
+      - 'resource limits are applied as Kubernetes limits'

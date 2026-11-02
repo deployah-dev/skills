@@ -1,0 +1,13 @@
+{
+  "name": "deployah-skills",
+  "owner": {
+    "name": "deployah-dev"
+  },
+  "plugins": [
+    {
+      "name": "deployah",
+      "source": "./",
+      "description": "Official Deployah Agent Skills plugin"
+    }
+  ]
+}
