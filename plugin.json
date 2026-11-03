@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "deployah",
+  "version": "0.1.0",
+  "description": "Deployah Spec-to-Release skill for Kubernetes: author deployah.yaml, validate, plan, deploy, and operate with safety rules.",
+  "author": {
+    "name": "The Deployah Authors",
+    "url": "https://deployah.dev"
+  },
+  "homepage": "https://deployah.dev",
+  "repository": "https://github.com/deployah-dev/skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "deployah",
+    "kubernetes",
+    "helm",
+    "spec-to-release",
+    "deploy"
+  ]
+}

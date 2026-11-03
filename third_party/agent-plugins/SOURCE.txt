@@ -1,0 +1,4 @@
+Source: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json
+Fetched: 2026-11-02
+Specification: Agent Plugins 1.0.0
+License: see https://agent-plugins.org (schema published for implementers)
