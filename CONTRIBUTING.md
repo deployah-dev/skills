@@ -33,8 +33,9 @@ and `SKILL.md` `metadata.version`. `check-product-version.sh` enforces this
 Author display name: **The Deployah Authors**. Homepage: https://deployah.dev.
 Source: https://github.com/deployah-dev/skills.
 
-No changelog file. Use Git history and GitHub Releases. Do not invent tags or
-releases without authorization.
+No changelog file. Use Git history and GitHub Releases.
+
+Release tags and GitHub Releases are managed by the Deployah maintainers.
 
 ## Validation
 
@@ -85,6 +86,9 @@ Flow: merge to `main` → annotated tag `vX.Y.Z` → workflow prepares a **draft
 GitHub Release with the release artifact → human reviews notes and publishes.
 Marketplace submission stays **manual** and is never triggered by CI.
 
+Product validation and packaging use Nix (`nix flake check`, `nix build .#release`).
+The release workflow may use the runner `gh` client only for GitHub API calls.
+
 ### Version bump
 
 1. Set `.version` in root `plugin.json`.
@@ -104,7 +108,7 @@ The archive root must contain `plugin.json`, `skills/deployah/`,
 `.claude-plugin/`, `LICENSE`, and `README.md`. It must not contain `nix/`,
 flake files, `.github/`, `evals/`, or `third_party/`.
 
-### Tag (examples only; needs explicit authorization)
+### Tagging (maintainers)
 
 ```bash
 nix flake check --print-build-logs
@@ -135,7 +139,3 @@ refresh on their own schedule.
 
 Author scenarios in `evals/scenarios.json`. Default status is `not_executed`.
 Recording agent runs is separate from flake check green.
-
-## Commit policy
-
-No push, PR, tag, or publish without separate authorization.

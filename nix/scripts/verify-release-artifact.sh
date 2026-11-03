@@ -16,6 +16,10 @@ command -v unzip > /dev/null || {
 	echo "unzip missing" >&2
 	exit 1
 }
+command -v check-jsonschema > /dev/null || {
+	echo "check-jsonschema missing" >&2
+	exit 1
+}
 
 base="$(basename "$ZIP")"
 if [[ ! "$base" =~ ^deployah-agent-skills-v.+\.zip$ ]]; then
@@ -43,6 +47,18 @@ done < <(unzip -Z1 "$ZIP")
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 unzip -q "$ZIP" -d "$tmp"
+
+# Expected top-level consumer layout only.
+while IFS= read -r entry; do
+	[[ -n "$entry" ]] || continue
+	case "$entry" in
+		plugin.json | LICENSE | README.md | skills | .claude-plugin) ;;
+		*)
+			echo "unexpected top-level path in artifact: $entry" >&2
+			exit 1
+			;;
+	esac
+done < <(find "$tmp" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)
 
 required=(
 	plugin.json
@@ -104,9 +120,11 @@ case "$schema" in
 esac
 
 schema_file="$REPO/third_party/agent-plugins/plugin.schema.json"
-if [[ -f "$schema_file" ]] && command -v check-jsonschema > /dev/null; then
-	check-jsonschema --schemafile "$schema_file" "$tmp/plugin.json"
+if [[ ! -f "$schema_file" ]]; then
+	echo "missing schema file: $schema_file" >&2
+	exit 1
 fi
+check-jsonschema --schemafile "$schema_file" "$tmp/plugin.json"
 
 # Relative reference paths mentioned in SKILL.md should exist in the archive.
 while IFS= read -r ref; do
