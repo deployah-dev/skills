@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Ensure product version is consistent across manifests and SKILL metadata.
-# Source of truth: root plugin.json .version (not Agent Plugins schema version).
+# Product version consistency. Source of truth: root plugin.json .version.
+# Agent Plugins $schema version is independent and is not derived from product version.
 set -euo pipefail
 
 : "${DEPLOYAH_SKILLS_ROOT:?}"
@@ -13,9 +13,9 @@ command -v jq > /dev/null || {
 
 fail=0
 
-# SemVer core X.Y.Z with optional pre-release / build metadata (no leading v).
+# SemVer 2.0.0 (no leading zeros in numeric identifiers).
 is_semver() {
-	[[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-][0-9A-Za-z.-]+)?([+][0-9A-Za-z.-]+)?$ ]]
+	[[ "$1" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\+([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$ ]]
 }
 
 expected="$(jq -r '.version // empty' "$ROOT/plugin.json")"
@@ -24,7 +24,7 @@ if [[ -z "$expected" ]]; then
 	exit 1
 fi
 if ! is_semver "$expected"; then
-	echo "plugin.json .version is not SemVer: '$expected'" >&2
+	echo "plugin.json .version is not SemVer 2.0.0: '$expected'" >&2
 	exit 1
 fi
 
@@ -37,7 +37,6 @@ elif [[ "$claude_ver" != "$expected" ]]; then
 	fail=1
 fi
 
-# Agent Plugins schema URL must remain the specification version, not product version.
 schema="$(jq -r '."$schema" // empty' "$ROOT/plugin.json")"
 case "$schema" in
 	*"/schemas/1.0.0/"*) ;;

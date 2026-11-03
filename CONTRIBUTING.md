@@ -2,16 +2,16 @@
 
 ## Layout
 
-Product files (`skills/deployah/`, `plugin.json`, `.claude-plugin/`) are the
-consumer deliverable. Maintainer tooling lives under `nix/`:
+Product files (`skills/deployah/`, `plugin.json`, `.claude-plugin/`) are what
+consumers install. Maintainer tooling lives under `nix/`:
 
 ```text
 nix/
 ├── packages.nix     # custom skills-ref only
-├── validate.nix     # shared validate + check wiring
-├── release.nix      # consumer ZIP packaging
+├── validate.nix     # product validate + check
+├── release.nix      # release artifact + check
 ├── devshell.nix
-├── scripts/         # pure Bash product validation and packaging
+├── scripts/
 └── fixtures/
 ```
 
@@ -19,31 +19,27 @@ Consumers do not need Nix.
 
 ## Versioning
 
-| Kind | Value / source |
+| Kind | Source |
 |---|---|
-| Product (skill / plugin) | Root `plugin.json` `.version` (authoritative) |
-| Agent Plugins schema | `1.0.0` (manifest `$schema` URL; independent) |
-| Deployah CLI / app schemas | Independent; contracts read from locked `deployah-src` |
-| skills-ref (Nix package) | Upstream `skills-ref/pyproject.toml` via `agentskills-src` |
+| Product (skill / plugin) | Root `plugin.json` `.version` |
+| Agent Plugins schema | `1.0.0` (`$schema` URL; independent) |
+| Deployah CLI / app schemas | Locked `deployah-src` in `flake.lock` |
+| skills-ref | Upstream `skills-ref/pyproject.toml` via `agentskills-src` |
 
-Keep product version aligned in:
-
-- `plugin.json`
-- `.claude-plugin/plugin.json`
-- `skills/deployah/SKILL.md` `metadata.version`
-
-Validate enforces this. Do not hardcode the product version in scripts.
+Keep product version aligned in `plugin.json`, `.claude-plugin/plugin.json`,
+and `SKILL.md` `metadata.version`. `check-product-version.sh` enforces this
+(including SemVer 2.0.0). Do not hardcode the product version in scripts.
 
 Author display name: **The Deployah Authors**. Homepage: https://deployah.dev.
-Source repository: https://github.com/deployah-dev/skills.
+Source: https://github.com/deployah-dev/skills.
 
-Do not maintain a separate changelog file. Use Git history and GitHub Releases
-when you cut a release. Do not invent tags or releases without authorization.
+No changelog file. Use Git history and GitHub Releases. Do not invent tags or
+releases without authorization.
 
 ## Validation
 
-`checks.validate` and `apps.validate` share one derivation and the same
-mandatory product suite. Default source is immutable flake `self`.
+`checks.validate` / `apps.validate` share one suite. `checks.release` builds
+and verifies the release artifact. Both run under `nix flake check`.
 
 ```bash
 nix develop
@@ -51,7 +47,7 @@ nix run .#validate
 nix flake check --print-build-logs
 ```
 
-Dirty checkout (explicit override):
+Dirty checkout:
 
 ```bash
 DEPLOYAH_SKILLS_ROOT=$PWD nix run .#validate
@@ -59,32 +55,18 @@ DEPLOYAH_SKILLS_ROOT=$PWD nix run .#validate
 
 Do not run ad-hoc `pip` / `npm` / `npx` inside mandatory checks.
 
-### Untracked files and Flakes
+Untracked files need to be visible to Flakes (`git add -N .` or `git add -A`).
+
+### Pins
 
 ```bash
-git add -N .   # or git add -A without committing
-nix flake check --print-build-logs
-```
-
-### Updating the Deployah contract pin
-
-`flake.lock` is the only Deployah revision source of truth.
-
-```bash
-nix flake update deployah-src
+nix flake update deployah-src    # Deployah contract source
+nix flake update agentskills-src # skills-ref upstream
 nix run .#validate
 ```
 
-Update skill docs only when CLI/schema **behavior** consumers need changes
-(for example a new current `apiVersion`). Do not paste Git SHAs into
-consumer-facing skill files.
-
-### Updating skills-ref
-
-```bash
-nix flake update agentskills-src
-nix run .#validate
-```
+Update skill docs only when CLI/schema **behavior** changes for consumers.
+Do not paste Git SHAs into consumer-facing skill files.
 
 Skills CLI comes from locked nixpkgs (`pkgs.skills`).
 
@@ -99,15 +81,16 @@ These also run inside `nix run .#validate`.
 
 ## Release
 
-GitHub Releases are the canonical binary distribution for the consumer ZIP.
-Third-party marketplace submission stays **manual**.
+Flow: merge to `main` → annotated tag `vX.Y.Z` → workflow prepares a **draft**
+GitHub Release with the release artifact → human reviews notes and publishes.
+Marketplace submission stays **manual** and is never triggered by CI.
 
-### Product version bump
+### Version bump
 
 1. Set `.version` in root `plugin.json`.
 2. Match `.claude-plugin/plugin.json` and `SKILL.md` `metadata.version`.
-3. Update the Product version line in `README.md` if it still shows the old value.
-4. Run `nix flake check --print-build-logs` and `nix run .#validate`.
+3. Update the Product version line in `README.md` if needed.
+4. Run `nix flake check --print-build-logs`.
 
 ### Local artifact
 
@@ -117,16 +100,13 @@ nix build .#release
 unzip -l result/deployah-agent-skills-v*.zip
 ```
 
-The ZIP root must contain `plugin.json`, `skills/deployah/`, `.claude-plugin/`,
-`LICENSE`, and `README.md`. It must not contain `nix/`, flake files, `.github/`,
-`evals/`, or `third_party/`.
+The archive root must contain `plugin.json`, `skills/deployah/`,
+`.claude-plugin/`, `LICENSE`, and `README.md`. It must not contain `nix/`,
+flake files, `.github/`, `evals/`, or `third_party/`.
 
-### Tag and publish
-
-After the release commit is on `main` and explicitly approved:
+### Tag (examples only; needs explicit authorization)
 
 ```bash
-# Examples only — do not run without release authorization.
 nix flake check --print-build-logs
 nix build .#release
 
@@ -134,26 +114,22 @@ git tag -a v0.1.0 -m "Deployah Agent Skills v0.1.0"
 git push origin v0.1.0
 ```
 
-Pushing `vX.Y.Z` runs `.github/workflows/release.yml`, which:
+The tag must equal `v` + `plugin.json` version and point at a commit reachable
+from `main`. The workflow then:
 
-1. Checks the tag is SemVer and matches `plugin.json`
-2. Checks the tag commit is reachable from `main`
-3. Runs `nix flake check --print-build-logs`
-4. Builds `nix build .#release` and verifies the ZIP
-5. Creates a GitHub Release titled `Deployah Agent Skills vX.Y.Z` with the ZIP
+1. Runs `nix flake check` (product suite + release artifact verification)
+2. Builds `nix build .#release`
+3. Creates a **draft** GitHub Release with generated notes and the versioned ZIP
+4. Marks SemVer prereleases (`X.Y.Z-…`) as GitHub prereleases
 
-If a GitHub Release for that tag already exists, publish is skipped (no
-overwrite). Fix incomplete releases by hand.
+If a GitHub Release for that tag already exists, creation is skipped (no
+overwrite). Incomplete drafts need a manual fix.
 
-### Marketplaces
-
-Do not automate Claude Directory, Cursor Marketplace, Codex Plugin Directory,
-or other third-party submissions from CI. After a GitHub Release:
-
-1. Confirm the ZIP and tag match
-2. Follow each marketplace's current submission or refresh process separately
-3. Keep `.claude-plugin/marketplace.json` `source: "./"` for the GitHub-hosted
-   Claude adapter; clients refresh on their own schedule
+After review, publish the draft in the GitHub UI. Publishing does **not**
+update Claude Directory, Cursor Marketplace, Codex Plugin Directory, or other
+third-party marketplaces. Submit those separately if needed. The GitHub-hosted
+Claude adapter keeps `.claude-plugin/marketplace.json` `source: "./"`; clients
+refresh on their own schedule.
 
 ## Evals
 

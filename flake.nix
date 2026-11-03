@@ -38,7 +38,7 @@
           skills-ref = packages.skills-ref;
         };
 
-        release = import ./nix/release.nix {
+        releaseWiring = import ./nix/release.nix {
           inherit pkgs;
           src = self;
         };
@@ -50,11 +50,12 @@
           default = packages.skills-ref;
           skills-ref = packages.skills-ref;
           validate = validateWiring.validate;
-          inherit release;
+          release = releaseWiring.release;
         };
 
         checks = {
           validate = validateWiring.check;
+          release = releaseWiring.check;
         };
 
         apps.validate = flake-utils.lib.mkApp {

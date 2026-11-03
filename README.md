@@ -39,28 +39,29 @@ Current schemas: application `v1-alpha.5`, platform `platform/v1-alpha.3`.
 
 ## Supported AI agents
 
-Statuses describe evidence for **this** repository, not general product marketing.
+Statuses are evidence for **this** repository, not product marketing.
 
-Evidence levels:
+| Status | Meaning |
+|---|---|
+| Documented | Install path taken from public client docs or packaging layout |
+| Not agent-tested | No recorded install or multi-turn run in that client |
+| Not tested | No evidence beyond possible spec compatibility |
 
-- **Documented** — install path written from public client docs or packaging layout
-- **Skills CLI discovery** — maintainer check that the generic Skills CLI lists `deployah` from this repo (not a client install test)
-- **Not agent-tested** — no recorded install or multi-turn run in that client
-- **Not tested** — no evidence beyond possible spec compatibility
+Maintainer CI also runs a generic Skills CLI discovery check. That proves
+`deployah` is listable from this repo; it is **not** a client-specific install
+or behavior test.
 
 | Agent | Agent Skills | Agent Plugins / packaging | Install path | Status |
 |---|---|---|---|---|
 | Claude Code | Yes (via plugin skills discovery) | Claude Code plugin (`.claude-plugin/`) | Local / GitHub-hosted marketplace adapter | Documented — not agent-tested |
 | Cursor | Yes | Agent Plugins root `plugin.json` | Skills CLI or local AP plugin | Documented — not agent-tested |
-| OpenAI Codex | Typical Skills install paths | — | Documented Skills CLI / local skills dir | Documented — not agent-tested |
-| GitHub Copilot | Where Copilot loads Agent Skills | — | Documented when path is known | Not tested |
-| Gemini CLI | Experimental / client-dependent | — | Documented when path is known | Not tested |
-| OpenCode | Where OpenCode loads Agent Skills | — | Documented Skills-style install | Not tested |
+| OpenAI Codex | Typical Skills install paths | — | Skills CLI / local skills dir | Documented — not agent-tested |
+| GitHub Copilot | Where Copilot loads Agent Skills | — | When path is known | Not tested |
+| Gemini CLI | Experimental / client-dependent | — | When path is known | Not tested |
+| OpenCode | Where OpenCode loads Agent Skills | — | Skills-style install | Not tested |
 
-Maintainer validation includes Skills CLI discovery for this repository. That
-check is **not** attributed to any single AI client. Manual scenarios in
-`evals/` remain `not_executed` until someone records runs. Marketplace
-publication is separate and is not claimed here.
+Scenarios in `evals/` stay `not_executed` until someone records runs.
+Marketplace publication is separate and is not claimed here.
 
 ## Plugin distributions
 
@@ -70,9 +71,9 @@ publication is separate and is not claimed here.
 | Agent Plugins | `plugin.json` | Open plugin packaging (schema `1.0.0`) |
 | Claude Code plugin | `.claude-plugin/` | Claude-specific marketplace / plugin adapter |
 
-`.claude-plugin/` does **not** duplicate the skill. It points Claude Code at
-the same `skills/` tree. Cursor uses the root Agent Plugins manifest; there is
-no `.cursor-plugin/`.
+`.claude-plugin/` does **not** duplicate the skill; it points at the same
+`skills/` tree. Cursor uses the root Agent Plugins manifest. There is no
+`.cursor-plugin/`.
 
 ## Installation
 
@@ -97,18 +98,15 @@ Install the `deployah` plugin; skills load from `skills/` by default.
 ### Cursor
 
 Use the Skills CLI above, or load the repo as a local Agent Plugins package
-per [Cursor plugins](https://cursor.com/docs/plugins) documentation (for
-example a temporary copy under the local plugins directory). Do not create
-outbound symlinks from this repository into Cursor config.
+per [Cursor plugins](https://cursor.com/docs/plugins) documentation. Do not
+create outbound symlinks from this repository into Cursor config.
 
 ### Other agents
 
 Follow each client's Agent Skills install docs when available. Treat those
-paths as **documented**, not fully tested, until recorded in `evals/`.
+paths as documented, not fully tested, until recorded in `evals/`.
 
 ## Usage
-
-Typical agent workflow:
 
 1. Confirm `deployah` is installed (`deployah version`).
 2. Author or edit `deployah.yaml` / `deployah.platform.yaml` for `v1-alpha.5` /
@@ -130,19 +128,17 @@ See `skills/deployah/SKILL.md` and `skills/deployah/references/` for detail.
 
 ## Development
 
-Maintainer tooling (Nix):
-
 ```bash
 nix develop
 nix flake check --print-build-logs
 nix run .#validate
 nix build .#release
-# dirty local tree (explicit):
-DEPLOYAH_SKILLS_ROOT=$PWD nix run .#validate
+DEPLOYAH_SKILLS_ROOT=$PWD nix run .#validate   # dirty local tree
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for pins, validation, versioning, and
-cutting a GitHub Release. Consumers do not need Nix.
+Maintainer details (pins, versioning, GitHub Releases):
+[CONTRIBUTING.md](https://github.com/deployah-dev/skills/blob/main/CONTRIBUTING.md).
+Consumers do not need Nix.
 
 ## License
 

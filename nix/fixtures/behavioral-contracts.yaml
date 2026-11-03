@@ -1,4 +1,4 @@
-# Lightweight safety assertions (semantic intent, not exact marketing prose).
+# Textual safety guardrails for skill docs (not agent behavior evals).
 assertions:
   - id: plan-does-not-authorize-deploy
     skill_glob:
@@ -17,7 +17,10 @@ assertions:
     skill_glob:
       - skills/deployah/**/*.md
     must_match:
-      - 'not secret-safe|secret-safe'
+      - 'not secret-safe'
+    must_not_match:
+      - 'resolve is secret-safe'
+      - 'resolve (is|outputs? are) safe'
 
   - id: init-tty-agents-write-yaml
     skill_glob:

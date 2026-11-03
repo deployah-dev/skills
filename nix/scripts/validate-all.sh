@@ -59,6 +59,7 @@ shell_files=(
 	"$SCRIPT_DIR/check-cli-contract.sh"
 	"$SCRIPT_DIR/smoke-discover.sh"
 	"$SCRIPT_DIR/package-release.sh"
+	"$SCRIPT_DIR/verify-release-artifact.sh"
 	"$SCRIPT_DIR/lib/common.sh"
 )
 

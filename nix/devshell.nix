@@ -22,11 +22,10 @@ pkgs.mkShell {
 
   shellHook = ''
     echo "Deployah skills maintainer shell"
-    echo "  nix run .#validate              # flake self (reproducible default)"
+    echo "  nix run .#validate"
     echo "  DEPLOYAH_SKILLS_ROOT=\$PWD nix run .#validate  # dirty checkout"
-    echo "  nix build .#release             # consumer ZIP from plugin.json version"
-    echo "  skills-ref validate skills/deployah"
-    echo "  skills add . --list"
-    echo "  Product version: see plugin.json (Agent Plugins schema remains 1.0.0)"
+    echo "  nix build .#release"
+    echo "  nix flake check --print-build-logs"
+    echo "  Product version: plugin.json (Agent Plugins schema stays 1.0.0)"
   '';
 }

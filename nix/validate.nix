@@ -6,8 +6,7 @@
 }:
 
 let
-  # Maintainer scripts + fixtures packaged with the validate entrypoint so
-  # checks.validate and apps.validate always run the same suite code.
+  # Shared suite so checks.validate and apps.validate run the same scripts.
   validateScripts = ./scripts;
   validateFixtures = ./fixtures;
 
@@ -27,7 +26,6 @@ let
     pkgs.bash
   ];
 
-  # Bundle scripts/fixtures into a fixed store path referenced by both entrypoints.
   suite = pkgs.runCommand "deployah-skills-validate-suite" { } ''
     mkdir -p $out/scripts $out/fixtures
     cp -a ${validateScripts}/. $out/scripts/
@@ -42,8 +40,7 @@ let
     text = ''
       set -euo pipefail
 
-      # Default: immutable flake source (self). Override explicitly for a
-      # dirty local checkout:
+      # Default root is flake self. Dirty tree:
       #   DEPLOYAH_SKILLS_ROOT=$PWD nix run .#validate
       if [[ -n "''${DEPLOYAH_SKILLS_ROOT:-}" ]]; then
         ROOT="$DEPLOYAH_SKILLS_ROOT"
@@ -68,7 +65,6 @@ let
         nativeBuildInputs = runtimeInputs ++ [ validate ];
       }
       ''
-        # Same default source snapshot as apps.validate (flake self).
         export DEPLOYAH_SKILLS_ROOT="${src}"
         export DEPLOYAH_SRC="${deployah-src}"
         export HOME
